@@ -1,0 +1,24 @@
+{
+  "name": "worker-service",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1015.0",
+    "@aws-sdk/client-sns": "^3.1015.0",
+    "@prisma/client": "^5.22.0",
+    "bullmq": "^5.71.0",
+    "dotenv": "^17.3.1",
+    "firebase-admin": "^13.7.0",
+    "ioredis": "^5.10.1",
+    "prisma": "^5.22.0",
+    "redis": "^5.11.0"
+  }
+}

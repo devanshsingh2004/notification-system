@@ -1,0 +1,36 @@
+body {
+  font-family: Arial;
+  background: #f4f4f4;
+}
+
+.card {
+  width: 350px;
+  margin: 80px auto;
+  padding: 20px;
+  background: white;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.tabs button {
+  margin: 5px;
+}
+
+input, textarea {
+  width: 100%;
+  margin-top: 10px;
+  padding: 5px;
+}
+
+button {
+  margin-top: 15px;
+  width: 100%;
+  padding: 8px;
+}
+
+.timeline {
+  margin-top: 20px;
+}
+
+.timeline div {
+  margin: 5px 0;
+}

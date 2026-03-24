@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Notification System</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="card">
+    <h2>Send Notification</h2>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button onclick="selectTab('EMAIL')">Email</button>
+      <button onclick="selectTab('SMS')">SMS</button>
+      <button onclick="selectTab('PUSH')">Push</button>
+    </div>
+
+    <!-- Form -->
+    <div id="form"></div>
+
+    <button onclick="sendNotification()">Send</button>
+
+    <!-- Timeline -->
+    <div class="timeline">
+      <div id="queued">⚪ Queued</div>
+      <div id="processing">⚪ Processing</div>
+      <div id="delivered">⚪ Delivered</div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
