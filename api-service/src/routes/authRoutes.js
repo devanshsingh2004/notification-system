@@ -10,9 +10,9 @@ export default async function (app, opts) {
 
     //  Dummy user (replace with DB later)
     const user = {
-      id: "user-1",
-      email,
-    };
+  id: 1,   
+  email,
+};
 
     // Access Token (short-lived)
     const accessToken = app.jwt.sign(user, {
