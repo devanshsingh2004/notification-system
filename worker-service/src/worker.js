@@ -119,6 +119,8 @@ worker.on("failed", (job, err) => {
   console.log(` Job ${job.id} failed: ${err.message}`);
 });
 
+console.log("FINAL PAYLOAD:", JSON.stringify(payload, null, 2));
+
 worker.on("error", (err) => {
   console.error(" Worker error:", err);
 });
