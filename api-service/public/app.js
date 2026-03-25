@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000";
+const API_URL = window.location.origin; //  auto works for local + EC2
 
 let token = "";
 let currentType = "EMAIL";
@@ -8,6 +8,7 @@ function selectTab(type) {
   renderForm();
 }
 
+//  Render dynamic form
 function renderForm() {
   const form = document.getElementById("form");
 
@@ -28,14 +29,17 @@ function renderForm() {
 
   if (currentType === "PUSH") {
     form.innerHTML = `
-      <input id="token" placeholder="Device Token" />
+      <input id="tokenInput" placeholder="Device Token" />
       <input id="title" placeholder="Title" />
       <textarea id="message" placeholder="Message"></textarea>
     `;
   }
 }
 
+//  Login (only once)
 async function login() {
+  if (token) return;
+
   const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -46,6 +50,7 @@ async function login() {
   token = data.accessToken;
 }
 
+//  Timeline UI
 function updateTimeline(status) {
   const steps = ["queued", "processing", "delivered"];
 
@@ -73,6 +78,7 @@ function updateTimeline(status) {
   }
 }
 
+//  Send Notification
 async function sendNotification() {
   await login();
 
@@ -95,13 +101,16 @@ async function sendNotification() {
 
   if (currentType === "PUSH") {
     payload = {
-      deviceToken: document.getElementById("token").value,
+      deviceToken: document.getElementById("tokenInput").value,
       title: document.getElementById("title").value,
       body: document.getElementById("message").value,
     };
   }
 
   const idempotencyKey = Date.now().toString();
+
+  //  show immediate feedback
+  updateTimeline("QUEUED");
 
   const res = await fetch(`${API_URL}/api/v1/notifications`, {
     method: "POST",
@@ -118,11 +127,10 @@ async function sendNotification() {
 
   const data = await res.json();
 
-  updateTimeline("QUEUED");
-
   pollStatus(data.notificationId);
 }
 
+//  Poll status
 function pollStatus(id) {
   const interval = setInterval(async () => {
     const res = await fetch(`${API_URL}/api/v1/notifications/${id}`, {
@@ -141,5 +149,5 @@ function pollStatus(id) {
   }, 2000);
 }
 
-// Initial load
+//  Initial load
 renderForm();

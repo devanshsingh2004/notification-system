@@ -1,0 +1,4 @@
+node_modules
+.env
+worker-service/.env
+api-service/.env
