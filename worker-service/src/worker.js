@@ -8,20 +8,33 @@ import { sendPush } from "./providers/pushProvider.js";
 
 const prisma = new PrismaClient();
 
+//  Redis connection
 const connection = new Redis({
   host: "127.0.0.1",
   port: 6379,
   maxRetriesPerRequest: null,
 });
 
+//  DEBUG: confirm Redis connection
+connection.on("connect", () => {
+  console.log(" Connected to Redis");
+});
+
+connection.on("error", (err) => {
+  console.error(" Redis error:", err);
+});
+
+//  Worker
+console.log(" Worker starting...");
+
 const worker = new Worker(
   "notification-queue",
   async (job) => {
+    console.log(" Job received:", job.id, job.data);
+
     const { notificationId } = job.data;
 
-    console.log("Processing:", notificationId);
-
-    // Get notification from DB
+    //  Fetch notification
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
     });
@@ -30,7 +43,9 @@ const worker = new Worker(
       throw new Error("Notification not found");
     }
 
-    // Update status → PROCESSING
+    console.log("Processing:", notificationId);
+
+    //  Update → PROCESSING
     await prisma.notification.update({
       where: { id: notificationId },
       data: { status: "PROCESSING" },
@@ -40,14 +55,17 @@ const worker = new Worker(
       // CORE LOGIC
       switch (notification.type) {
         case "EMAIL":
+          console.log(" Sending email...");
           await sendEmail(notification.payload);
           break;
 
         case "SMS":
+          console.log(" Sending SMS...");
           await sendSMS(notification.payload);
           break;
 
         case "PUSH":
+          console.log(" Sending Push...");
           await sendPush(notification.payload);
           break;
 
@@ -55,18 +73,17 @@ const worker = new Worker(
           throw new Error("Invalid notification type");
       }
 
-      // Success
+      //  Success
       await prisma.notification.update({
         where: { id: notificationId },
         data: { status: "SENT" },
       });
 
-      console.log("Sent:", notificationId);
+      console.log(" Sent:", notificationId);
 
     } catch (error) {
-      console.log("Error:", error.message);
+      console.error(" Error:", error.message);
 
-      //  Failure
       await prisma.notification.update({
         where: { id: notificationId },
         data: {
@@ -81,10 +98,23 @@ const worker = new Worker(
   { connection }
 );
 
-worker.on("completed", (job) => {
-  console.log(`Job ${job.id} completed`);
+//  Worker lifecycle logs
+worker.on("ready", () => {
+  console.log(" Worker is ready and waiting for jobs...");
 });
 
-worker.on("failed", (job) => {
-  console.log(`Job ${job.id} failed after retries`);
+worker.on("active", (job) => {
+  console.log(` Job ${job.id} started`);
+});
+
+worker.on("completed", (job) => {
+  console.log(` Job ${job.id} completed`);
+});
+
+worker.on("failed", (job, err) => {
+  console.log(` Job ${job.id} failed: ${err.message}`);
+});
+
+worker.on("error", (err) => {
+  console.error(" Worker error:", err);
 });
