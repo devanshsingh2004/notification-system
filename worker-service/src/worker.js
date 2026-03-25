@@ -8,14 +8,14 @@ import { sendPush } from "./providers/pushProvider.js";
 
 const prisma = new PrismaClient();
 
-//  Redis connection
+// Redis connection
 const connection = new Redis({
   host: "127.0.0.1",
   port: 6379,
   maxRetriesPerRequest: null,
 });
 
-//  DEBUG: confirm Redis connection
+// Debug Redis
 connection.on("connect", () => {
   console.log(" Connected to Redis");
 });
@@ -24,7 +24,6 @@ connection.on("error", (err) => {
   console.error(" Redis error:", err);
 });
 
-//  Worker
 console.log(" Worker starting...");
 
 const worker = new Worker(
@@ -34,7 +33,6 @@ const worker = new Worker(
 
     const { notificationId } = job.data;
 
-    //  Fetch notification
     const notification = await prisma.notification.findUnique({
       where: { id: notificationId },
     });
@@ -45,18 +43,24 @@ const worker = new Worker(
 
     console.log("Processing:", notificationId);
 
-    //  Update → PROCESSING
+    // Update → PROCESSING
     await prisma.notification.update({
       where: { id: notificationId },
       data: { status: "PROCESSING" },
     });
 
     try {
-      // CORE LOGIC
       switch (notification.type) {
         case "EMAIL":
           console.log(" Sending email...");
-          await sendEmail(notification.payload);
+
+          //   map payload correctly
+          await sendEmail({
+            to: notification.payload.email,
+            subject: notification.payload.subject,
+            text: notification.payload.message,
+          });
+
           break;
 
         case "SMS":
@@ -73,7 +77,7 @@ const worker = new Worker(
           throw new Error("Invalid notification type");
       }
 
-      //  Success
+      // Success
       await prisma.notification.update({
         where: { id: notificationId },
         data: { status: "SENT" },
@@ -92,13 +96,13 @@ const worker = new Worker(
         },
       });
 
-      throw error; // triggers retry
+      throw error;
     }
   },
   { connection }
 );
 
-//  Worker lifecycle logs
+// Worker lifecycle logs
 worker.on("ready", () => {
   console.log(" Worker is ready and waiting for jobs...");
 });
