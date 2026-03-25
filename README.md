@@ -130,7 +130,7 @@ Same for DB:
 DATABASE_URL from env only
 ```
 ---
-🚀 Helper scripts 
+# 🚀 Helper scripts 
 
 Inside root, create:
 
