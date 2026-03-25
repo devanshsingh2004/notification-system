@@ -15,7 +15,7 @@ const connection = new Redis({
   maxRetriesPerRequest: null,
 });
 
-// Debug Redis
+// Redis logs
 connection.on("connect", () => {
   console.log(" Connected to Redis");
 });
@@ -41,7 +41,8 @@ const worker = new Worker(
       throw new Error("Notification not found");
     }
 
-    console.log("Processing:", notificationId);
+    console.log(" Processing:", notificationId);
+    console.log(" Raw DB payload:", notification.payload);
 
     // Update → PROCESSING
     await prisma.notification.update({
@@ -51,17 +52,37 @@ const worker = new Worker(
 
     try {
       switch (notification.type) {
-        case "EMAIL":
-  console.log(" Sending email...");
-  console.log(" DB payload:", notification.payload); 
+        case "EMAIL": {
+          console.log(" Preparing email...");
 
-  await sendEmail({
-    to: notification.payload.email,      
-    subject: notification.payload.subject,
-    text: notification.payload.message,  
-  });
+          //  NORMALIZE PAYLOAD (handles both formats)
+          const emailPayload = {
+            to:
+              notification.payload.email ||
+              notification.payload.to ||
+              null,
+            subject: notification.payload.subject || "No Subject",
+            text:
+              notification.payload.message ||
+              notification.payload.text ||
+              null,
+          };
 
-  break;
+          console.log(
+            " FINAL EMAIL PAYLOAD:",
+            JSON.stringify(emailPayload, null, 2)
+          );
+
+          //  Safety check (prevents SES crash)
+          if (!emailPayload.to || !emailPayload.text) {
+            throw new Error(
+              "Invalid email payload (missing to/text)"
+            );
+          }
+
+          await sendEmail(emailPayload);
+          break;
+        }
 
         case "SMS":
           console.log(" Sending SMS...");
@@ -84,7 +105,6 @@ const worker = new Worker(
       });
 
       console.log(" Sent:", notificationId);
-
     } catch (error) {
       console.error(" Error:", error.message);
 
@@ -104,7 +124,7 @@ const worker = new Worker(
 
 // Worker lifecycle logs
 worker.on("ready", () => {
-  console.log(" Worker is ready and waiting for jobs...");
+  console.log(" Worker ready");
 });
 
 worker.on("active", (job) => {
@@ -118,8 +138,6 @@ worker.on("completed", (job) => {
 worker.on("failed", (job, err) => {
   console.log(` Job ${job.id} failed: ${err.message}`);
 });
-
-console.log("FINAL PAYLOAD:", JSON.stringify(payload, null, 2));
 
 worker.on("error", (err) => {
   console.error(" Worker error:", err);
