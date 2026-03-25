@@ -12,15 +12,17 @@ const ses = new SESClient({
 });
 
 export async function sendEmail(payload) {
+  console.log(" Email payload received:", payload); 
+
   const params = {
-    Source: "singhdevansh4747@gmail.com", 
+    Source: "singhdevansh4747@gmail.com",
     Destination: {
-      ToAddresses: [payload.email],
+      ToAddresses: [payload.to],   
     },
     Message: {
       Subject: { Data: payload.subject },
       Body: {
-        Text: { Data: payload.message },
+        Text: { Data: payload.text }, 
       },
     },
   };
