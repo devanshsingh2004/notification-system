@@ -1,4 +1,4 @@
-const API_URL = window.location.origin; //  auto works for local + EC2
+const API_URL = window.location.origin;
 
 let token = "";
 let currentType = "EMAIL";
@@ -36,7 +36,7 @@ function renderForm() {
   }
 }
 
-//  Login (only once)
+//  Login
 async function login() {
   if (token) return;
 
@@ -84,11 +84,12 @@ async function sendNotification() {
 
   let payload = {};
 
+  //  FIXED PAYLOAD KEYS (IMPORTANT)
   if (currentType === "EMAIL") {
     payload = {
-      email: document.getElementById("email").value,
+      to: document.getElementById("email").value,        //  FIX
       subject: document.getElementById("subject").value,
-      message: document.getElementById("message").value,
+      text: document.getElementById("message").value,    // FIX
     };
   }
 
@@ -109,7 +110,6 @@ async function sendNotification() {
 
   const idempotencyKey = Date.now().toString();
 
-  //  show immediate feedback
   updateTimeline("QUEUED");
 
   const res = await fetch(`${API_URL}/api/v1/notifications`, {
@@ -127,10 +127,19 @@ async function sendNotification() {
 
   const data = await res.json();
 
+  //  SAFETY CHECK (CRITICAL)
+  if (!data.notificationId) {
+    console.error(" No notificationId returned", data);
+    alert("Error sending notification");
+    return;
+  }
+
+  console.log("Notification ID:", data.notificationId);
+
   pollStatus(data.notificationId);
 }
 
-//  Poll status
+// 🔹 Poll status
 function pollStatus(id) {
   const interval = setInterval(async () => {
     const res = await fetch(`${API_URL}/api/v1/notifications/${id}`, {
@@ -140,6 +149,8 @@ function pollStatus(id) {
     });
 
     const data = await res.json();
+
+    console.log(" Status:", data.status);
 
     updateTimeline(data.status);
 
