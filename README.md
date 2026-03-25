@@ -129,8 +129,9 @@ echo "Starting Worker..."
 cd ../worker-service && node src/worker.js
 
 ```
-```bat 
+
 start.bat (Windows)
+```bat 
 echo Starting API...
 cd api-service
 start cmd /k npm run dev
@@ -143,6 +144,3 @@ start cmd /k node src/worker.js
 ```bash
 ./start.sh
 ```
-
-cd ../worker-service
-npm install
