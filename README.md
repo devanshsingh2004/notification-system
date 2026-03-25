@@ -17,6 +17,22 @@ Client → API → Redis → Worker → AWS SES → DB
 - PostgreSQL (local or AWS RDS)
 
 ---
+## ⚡ Quick Start
+
+1. Start Redis
+2. Setup `.env`
+3. Run:
+
+npm install (in both folders)
+
+4. Start services:
+
+API → npm run dev  
+Worker → node src/worker.js
+
+5. Open: http://localhost:3000
+
+---
 
 ## 🚀 Setup
 
