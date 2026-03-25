@@ -1,16 +1,25 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import notificationRoutes from "./routes/notificationRoutes.js";
-import authRoutes from "./routes/authRoutes.js";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import cookie from "@fastify/cookie";
+import fastifyStatic from "@fastify/static";
+
+import path from "path";
+import { fileURLToPath } from "url";
+
+import notificationRoutes from "./routes/notificationRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = Fastify({ logger: true });
 
-// Register plugins
+//  Fix __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+//  Register plugins
 await app.register(cors);
 
 await app.register(jwt, {
@@ -21,7 +30,13 @@ await app.register(cookie, {
   secret: "supersecretcookie",
 });
 
-// Auth middleware
+//  Serve frontend (IMPORTANT)
+await app.register(fastifyStatic, {
+  root: path.join(__dirname, "../public"),
+  prefix: "/", // serve at root
+});
+
+//  Auth middleware
 app.decorate("authenticate", async function (request, reply) {
   try {
     await request.jwtVerify();
@@ -30,17 +45,21 @@ app.decorate("authenticate", async function (request, reply) {
   }
 });
 
-// Health route
+//  Health route
 app.get("/health", async () => {
   return { status: "OK" };
 });
 
-// Register auth routes 
+//  Root route → load frontend
+app.get("/", async (request, reply) => {
+  return reply.sendFile("index.html");
+});
+
+//  Routes
 await app.register(authRoutes, {
   prefix: "/api/v1/auth",
 });
 
-// Register notification routes
 await app.register(notificationRoutes, {
   prefix: "/api/v1/notifications",
 });
