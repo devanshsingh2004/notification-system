@@ -12,24 +12,43 @@ const ses = new SESClient({
 });
 
 export async function sendEmail(payload) {
-  console.log(" Email payload received:", payload);
+  try {
+    console.log("📨 Email payload received:", payload);
 
-  const params = {
-    Source: "singhdevansh4747@gmail.com",
-    Destination: {
-      ToAddresses: [payload.to], 
-    },
-    Message: {
-      Subject: { Data: payload.subject },
-      Body: {
-        Text: { Data: payload.text }, 
+    //  Safety validation
+    if (!payload.to || !payload.subject || !payload.text) {
+      throw new Error("Invalid email payload");
+    }
+
+    const params = {
+      Source: process.env.SES_FROM_EMAIL, 
+      Destination: {
+        ToAddresses: [payload.to],
       },
-    },
-  };
+      Message: {
+        Subject: {
+          Data: payload.subject,
+          Charset: "UTF-8",
+        },
+        Body: {
+          Text: {
+            Data: payload.text,
+            Charset: "UTF-8",
+          },
+        },
+      },
+    };
 
-  console.log(" SES params:", params); 
+    console.log(" SES params:", params);
 
-  await ses.send(new SendEmailCommand(params));
+    const result = await ses.send(new SendEmailCommand(params));
 
-  console.log(" Email sent via SES");
+    console.log(" Email sent via SES:", result.MessageId);
+
+    return result;
+
+  } catch (error) {
+    console.error("❌ SES Error:", error.message);
+    throw error; // important for retry logic
+  }
 }
