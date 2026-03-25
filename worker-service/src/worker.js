@@ -52,16 +52,16 @@ const worker = new Worker(
     try {
       switch (notification.type) {
         case "EMAIL":
-          console.log(" Sending email...");
+  console.log(" Sending email...");
+  console.log(" DB payload:", notification.payload); 
 
-          //   map payload correctly
-          await sendEmail({
-            to: notification.payload.email,
-            subject: notification.payload.subject,
-            text: notification.payload.message,
-          });
+  await sendEmail({
+    to: notification.payload.email,      
+    subject: notification.payload.subject,
+    text: notification.payload.message,  
+  });
 
-          break;
+  break;
 
         case "SMS":
           console.log(" Sending SMS...");
