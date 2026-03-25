@@ -1,4 +1,4 @@
-const API_URL = "http://65.1.65.224:3000/api/v1";
+const API_URL = window.location.origin; //  auto works for local + EC2
 
 let token = "";
 let currentType = "EMAIL";
