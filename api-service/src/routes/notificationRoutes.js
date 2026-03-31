@@ -5,43 +5,52 @@ import rateLimiter from "../middleware/rateLimiter.js";
 
 export default async function (app, opts) {
 
-  // CREATE NOTIFICATION (POST)
+  // CREATE NOTIFICATION
   app.post(
     "/",
     {
+      schema: {
+        body: {
+          type: "object",
+          required: ["type", "payload"],
+          properties: {
+            type: {
+              type: "string",
+              enum: ["EMAIL", "SMS", "PUSH"],
+            },
+            payload: {
+              type: "object",
+            },
+          },
+        },
+        headers: {
+          type: "object",
+          required: ["idempotency-key"],
+          properties: {
+            "idempotency-key": { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              message: { type: "string" },
+              notificationId: { type: "string" },
+              status: { type: "string" },
+            },
+          },
+        },
+      },
       preHandler: [app.authenticate, rateLimiter],
     },
     async (request, reply) => {
+
       const { type, payload } = request.body;
 
-      //  Basic validation
-      if (!type || !payload) {
-        return reply.code(400).send({
-          message: "type and payload are required",
-        });
-      }
-
-      //  Allowed types
-      const allowedTypes = ["EMAIL", "SMS", "PUSH"];
-      if (!allowedTypes.includes(type)) {
-        return reply.code(400).send({
-          message: "Invalid notification type",
-        });
-      }
-
       const idempotencyKey = request.headers["idempotency-key"];
-
-      if (!idempotencyKey) {
-        return reply.code(400).send({
-          message: "Idempotency key required",
-        });
-      }
-
-      //  Scoped idempotency key (user-specific)
       const redisKey = `idempotency:${request.user.id}:${idempotencyKey}`;
 
       try {
-        //  Atomic set (prevents duplicates)
         const isSet = await connection.set(
           redisKey,
           "processing",
@@ -56,7 +65,6 @@ export default async function (app, opts) {
           });
         }
 
-        //  Ensure user exists
         let user = await prisma.user.findUnique({
           where: { id: request.user.id },
         });
@@ -70,7 +78,6 @@ export default async function (app, opts) {
           });
         }
 
-        //  Save notification
         const notification = await prisma.notification.create({
           data: {
             userId: user.id,
@@ -80,7 +87,6 @@ export default async function (app, opts) {
           },
         });
 
-        //  Push job to queue
         await notificationQueue.add(
           "send-notification",
           {
@@ -104,10 +110,7 @@ export default async function (app, opts) {
         };
 
       } catch (error) {
-        // release idempotency key on failure
         await connection.del(redisKey);
-
-        console.error("Error creating notification:", error);
 
         return reply.code(500).send({
           message: "Internal Server Error",
@@ -116,47 +119,59 @@ export default async function (app, opts) {
     }
   );
 
-  // GET NOTIFICATION STATUS
+
+  // GET NOTIFICATION
   app.get(
     "/:id",
     {
+      schema: {
+        params: {
+          type: "object",
+          required: ["id"],
+          properties: {
+            id: { type: "string" },
+          },
+        },
+        response: {
+          200: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              status: { type: "string" },
+              type: { type: "string" },
+              attempts: { type: "number" },
+            },
+          },
+        },
+      },
       preHandler: [app.authenticate],
     },
     async (request, reply) => {
+
       const { id } = request.params;
 
-      try {
-        const notification = await prisma.notification.findUnique({
-          where: { id },
-        });
+      const notification = await prisma.notification.findUnique({
+        where: { id },
+      });
 
-        if (!notification) {
-          return reply.code(404).send({
-            message: "Notification not found",
-          });
-        }
-
-        // Ensure user owns this notification
-        if (notification.userId !== request.user.id) {
-          return reply.code(403).send({
-            message: "Forbidden",
-          });
-        }
-
-        return {
-          id: notification.id,
-          status: notification.status,
-          type: notification.type,
-          attempts: notification.attempts,
-        };
-
-      } catch (error) {
-        console.error("Error fetching notification:", error);
-
-        return reply.code(500).send({
-          message: "Internal Server Error",
+      if (!notification) {
+        return reply.code(404).send({
+          message: "Notification not found",
         });
       }
+
+      if (notification.userId !== request.user.id) {
+        return reply.code(403).send({
+          message: "Forbidden",
+        });
+      }
+
+      return {
+        id: notification.id,
+        status: notification.status,
+        type: notification.type,
+        attempts: notification.attempts,
+      };
     }
   );
 }
