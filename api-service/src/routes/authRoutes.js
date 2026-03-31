@@ -1,33 +1,45 @@
 export default async function (app, opts) {
 
-  //  LOGIN
-  app.post("/login", async (request, reply) => {
+  // LOGIN
+  app.post("/login", {
+    schema: {
+      body: {
+        type: "object",
+        required: ["email"],
+        properties: {
+          email: { type: "string", format: "email" },
+        },
+      },
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            message: { type: "string" },
+            accessToken: { type: "string" },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+
     const { email } = request.body;
 
-    if (!email) {
-      return reply.code(400).send({ message: "Email required" });
-    }
-
-    //  Dummy user (replace with DB later)
     const user = {
-  id: 1,   
-  email,
-};
+      id: 1,
+      email,
+    };
 
-    // Access Token (short-lived)
     const accessToken = app.jwt.sign(user, {
       expiresIn: "15m",
     });
 
-    //  Refresh Token (long-lived)
     const refreshToken = app.jwt.sign(user, {
       expiresIn: "7d",
     });
 
-    //  Store refresh token in HTTP-only cookie
     reply.setCookie("refreshToken", refreshToken, {
       httpOnly: true,
-      secure: false, // ⚠️ set true in production (HTTPS)
+      secure: false, // true in production
       sameSite: "lax",
       path: "/",
     });
@@ -39,8 +51,20 @@ export default async function (app, opts) {
   });
 
 
-  //  REFRESH TOKEN
-  app.post("/refresh", async (request, reply) => {
+  // REFRESH
+  app.post("/refresh", {
+    schema: {
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            accessToken: { type: "string" },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+
     try {
       const refreshToken = request.cookies?.refreshToken;
 
@@ -48,10 +72,8 @@ export default async function (app, opts) {
         return reply.code(401).send({ message: "No refresh token" });
       }
 
-      //  Verify refresh token
       const decoded = app.jwt.verify(refreshToken);
 
-      //  Generate new access token
       const newAccessToken = app.jwt.sign(
         {
           id: decoded.id,
@@ -70,8 +92,20 @@ export default async function (app, opts) {
   });
 
 
-  //  LOGOUT
-  app.post("/logout", async (request, reply) => {
+  // LOGOUT
+  app.post("/logout", {
+    schema: {
+      response: {
+        200: {
+          type: "object",
+          properties: {
+            message: { type: "string" },
+          },
+        },
+      },
+    },
+  }, async (request, reply) => {
+
     reply.clearCookie("refreshToken", {
       path: "/",
     });
