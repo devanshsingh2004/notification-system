@@ -139,7 +139,7 @@ async function sendNotification() {
   pollStatus(data.notificationId);
 }
 
-// 🔹 Poll status
+//  Poll status
 function pollStatus(id) {
   const interval = setInterval(async () => {
     const res = await fetch(`${API_URL}/api/v1/notifications/${id}`, {
