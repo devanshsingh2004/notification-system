@@ -8,7 +8,7 @@ function selectTab(type) {
   renderForm();
 }
 
-//  Render dynamic form
+// FORM 
 function renderForm() {
   const form = document.getElementById("form");
 
@@ -36,13 +36,14 @@ function renderForm() {
   }
 }
 
-//  Login
+// LOGIN 
 async function login() {
   if (token) return;
 
   const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include", 
     body: JSON.stringify({ email: "test@gmail.com" }),
   });
 
@@ -50,7 +51,57 @@ async function login() {
   token = data.accessToken;
 }
 
-//  Timeline UI
+//  REFRESH 
+async function refreshToken() {
+  console.log(" Refreshing token...");
+
+  const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include", 
+  });
+
+  if (!res.ok) {
+    throw new Error("Refresh failed");
+  }
+
+  const data = await res.json();
+  token = data.accessToken;
+
+  console.log(" Token refreshed");
+}
+
+//  FETCH WRAPPER (CORE LOGIC) 
+async function fetchWithAuth(url, options = {}, retry = true) {
+  options.headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  options.credentials = "include";
+
+  let res = await fetch(url, options);
+
+  //  If access token expired
+  if (res.status === 401 && retry) {
+    try {
+      await refreshToken();
+
+      // retry original request once
+      return fetchWithAuth(url, options, false);
+    } catch (err) {
+      console.log(" Session expired, re-login");
+
+      token = "";
+      await login();
+
+      return fetchWithAuth(url, options, false);
+    }
+  }
+
+  return res;
+}
+
+//  TIMELINE 
 function updateTimeline(status) {
   const steps = ["queued", "processing", "delivered"];
 
@@ -78,18 +129,17 @@ function updateTimeline(status) {
   }
 }
 
-//  Send Notification
+//  SEND 
 async function sendNotification() {
   await login();
 
   let payload = {};
 
-  //  FIXED PAYLOAD KEYS (IMPORTANT)
   if (currentType === "EMAIL") {
     payload = {
-      to: document.getElementById("email").value,        //  FIX
+      to: document.getElementById("email").value,
       subject: document.getElementById("subject").value,
-      text: document.getElementById("message").value,    // FIX
+      text: document.getElementById("message").value,
     };
   }
 
@@ -112,11 +162,10 @@ async function sendNotification() {
 
   updateTimeline("QUEUED");
 
-  const res = await fetch(`${API_URL}/api/v1/notifications`, {
+  const res = await fetchWithAuth(`${API_URL}/api/v1/notifications`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
       "Idempotency-Key": idempotencyKey,
     },
     body: JSON.stringify({
@@ -127,9 +176,8 @@ async function sendNotification() {
 
   const data = await res.json();
 
-  //  SAFETY CHECK (CRITICAL)
   if (!data.notificationId) {
-    console.error(" No notificationId returned", data);
+    console.error(" No notificationId:", data);
     alert("Error sending notification");
     return;
   }
@@ -139,18 +187,16 @@ async function sendNotification() {
   pollStatus(data.notificationId);
 }
 
-//  Poll status
+//POLL
 function pollStatus(id) {
   const interval = setInterval(async () => {
-    const res = await fetch(`${API_URL}/api/v1/notifications/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/api/v1/notifications/${id}`
+    );
 
     const data = await res.json();
 
-    console.log(" Status:", data.status);
+    console.log("Status:", data.status);
 
     updateTimeline(data.status);
 
@@ -160,5 +206,5 @@ function pollStatus(id) {
   }, 2000);
 }
 
-//  Initial load
+// INIT 
 renderForm();
